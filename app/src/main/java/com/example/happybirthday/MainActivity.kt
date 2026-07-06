@@ -8,23 +8,31 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.*
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Send
+import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -93,21 +101,42 @@ fun PremiumApp() {
         when (screen) {
             "settings" -> SettingsScreen(
                 sName, sKey, sSite, sModel, showPassword, extraMode,
-                { sName = it }, { sKey = it }, { sSite = it }, { sModel = it }, { showPassword = it }, { extraMode = it },
-                configs, sharedPreferences,
+                onNameChange = { sName = it }, 
+                onKeyChange = { sKey = it }, 
+                onSiteChange = { sSite = it }, 
+                onModelChange = { sModel = it }, 
+                onTogglePassword = { showPassword = !showPassword }, 
+                onToggleExtra = { extraMode = !extraMode },
+                onSave = {
+                    if (sName.isNotBlank() && sKey.isNotBlank() && sSite.isNotBlank() && sModel.isNotBlank()) {
+                        val newConfig = AIConfig(sName, sKey, sSite, sModel)
+                        configs = configs + newConfig
+                        saveConfigs(sharedPreferences, configs)
+                        sName = ""; sKey = ""; sSite = ""; sModel = ""
+                    }
+                },
                 onBack = { screen = "models" }
             )
-            "models" -> ModelsScreen(configs, currentAI) { config ->
-                currentAI = config
-                messages = listOf()
-                chatId = UUID.randomUUID().toString()
-                screen = "chat"
-            }
+            "models" -> ModelsScreen(
+                configs = configs, 
+                currentAI = currentAI, 
+                onSelect = { config ->
+                    currentAI = config
+                    messages = listOf()
+                    chatId = UUID.randomUUID().toString()
+                    screen = "chat"
+                },
+                onAdd = { screen = "settings" }
+            )
             "chat" -> ChatScreen(
-                currentAI, messages, inputText, isWaiting, listState,
-                { inputText = it },
-                {
-                    if (inputText.isNotBlank() && !isWaiting) {
+                currentAI = currentAI, 
+                messages = messages, 
+                inputText = inputText, 
+                isWaiting = isWaiting, 
+                listState = listState,
+                onInputChange = { inputText = it },
+                onSend = {
+                    if (inputText.isNotBlank() && !isWaiting && currentAI != null) {
                         val userMsg = inputText
                         messages = messages + ChatMessage("user", userMsg)
                         inputText = ""
@@ -132,7 +161,7 @@ fun SettingsScreen(
     sName: String, sKey: String, sSite: String, sModel: String, showPassword: Boolean, extraMode: Boolean,
     onNameChange: (String) -> Unit, onKeyChange: (String) -> Unit, onSiteChange: (String) -> Unit, onModelChange: (String) -> Unit,
     onTogglePassword: () -> Unit, onToggleExtra: () -> Unit,
-    configs: List<AIConfig>, sharedPreferences: android.content.SharedPreferences,
+    onSave: () -> Unit,
     onBack: () -> Unit
 ) {
     Scaffold(
@@ -155,23 +184,23 @@ fun SettingsScreen(
                     Column(modifier = Modifier.padding(20.dp)) {
                         Text("Provider Details", color = TextGray, fontSize = 12.sp, modifier = Modifier.padding(bottom = 16.dp))
                         
-                        PremiumTextField("Provider Name", sName, onNameChange, Icons.Rounded.Business)
+                        PremiumTextField("Provider Name", sName, onNameChange, Icons.Rounded.Person)
                         Spacer(modifier = Modifier.height(16.dp))
                         
-                        PremiumTextField("API Key", sKey, onKeyChange, Icons.Rounded.Key, 
+                        PremiumTextField("API Key", sKey, onKeyChange, Icons.Rounded.Lock, 
                             isPassword = !showPassword, 
                             trailing = {
-                                IconButton(onClick = onTogglePassword) {
-                                    Icon(if (showPassword) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility, tint = TextGray, contentDescription = "Toggle")
+                                TextButton(onClick = onTogglePassword) {
+                                    Text(if (showPassword) "Hide" else "Show", color = AccentPurple)
                                 }
                             }
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         
-                        PremiumTextField("Base URL", sSite, onSiteChange, Icons.Rounded.Public)
+                        PremiumTextField("Base URL", sSite, onSiteChange, Icons.Rounded.Info)
                         Spacer(modifier = Modifier.height(16.dp))
                         
-                        PremiumTextField("Model Name", sModel, onModelChange, Icons.Rounded.SmartToy)
+                        PremiumTextField("Model Name", sModel, onModelChange, Icons.Rounded.Info)
                     }
                 }
                 
@@ -195,14 +224,7 @@ fun SettingsScreen(
                 Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                     Box(modifier = Modifier.shadow(elevation = 16.dp, shape = RoundedCornerShape(24.dp), ambientColor = AccentPurple, spotColor = AccentPurple)) {
                         Button(
-                            onClick = {
-                                if (sName.isNotBlank() && sKey.isNotBlank() && sSite.isNotBlank() && sModel.isNotBlank()) {
-                                    val newConfig = AIConfig(sName, sKey, sSite, sModel)
-                                    configs = configs + newConfig
-                                    saveConfigs(sharedPreferences, configs)
-                                    sName = ""; sKey = ""; sSite = ""; sModel = ""
-                                }
-                            },
+                            onClick = onSave,
                             modifier = Modifier.fillMaxWidth().height(56.dp),
                             shape = RoundedCornerShape(24.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
@@ -219,32 +241,13 @@ fun SettingsScreen(
                 Text("Saved Models", color = TextGray, fontSize = 14.sp, modifier = Modifier.padding(start = 8.dp))
                 Spacer(modifier = Modifier.height(12.dp))
             }
-            
-            items(configs) { config ->
-                Card(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = CardColor)
-                ) {
-                    Row(modifier = Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Box(modifier = Modifier.size(40.dp).clip(CircleShape).background(Brush.linearGradient(listOf(AccentPurple, AccentPurpleDark))), contentAlignment = Alignment.Center) {
-                            Text(config.name.take(1).uppercase(), color = Color.White, fontWeight = FontWeight.Bold)
-                        }
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Column {
-                            Text(config.name, color = TextWhite, fontWeight = FontWeight.SemiBold)
-                            Text(config.model, color = TextGray, fontSize = 12.sp)
-                        }
-                    }
-                }
-            }
         }
     }
 }
 
 // --- MODELS SCREEN ---
 @Composable
-fun ModelsScreen(configs: List<AIConfig>, currentAI: AIConfig?, onSelect: (AIConfig) -> Unit) {
+fun ModelsScreen(configs: List<AIConfig>, currentAI: AIConfig?, onSelect: (AIConfig) -> Unit, onAdd: () -> Unit) {
     Box(modifier = Modifier.fillMaxSize().background(BgColor)) {
         Column(modifier = Modifier.padding(24.dp, 48.dp, 24.dp, 24.dp)) {
             Text("My AI Models", color = TextWhite, fontSize = 28.sp, fontWeight = FontWeight.Bold)
@@ -271,7 +274,7 @@ fun ModelsScreen(configs: List<AIConfig>, currentAI: AIConfig?, onSelect: (AICon
                                     Text("Online", color = Color(0xFF4CD964), fontSize = 12.sp)
                                     Text(config.model, color = TextGray, fontSize = 12.sp)
                                 }
-                                Icon(Icons.Rounded.ChevronRight, tint = TextGray, contentDescription = "Select")
+                                Icon(Icons.Rounded.Star, tint = TextGray, contentDescription = "Select")
                             }
                         }
                     }
@@ -282,7 +285,7 @@ fun ModelsScreen(configs: List<AIConfig>, currentAI: AIConfig?, onSelect: (AICon
         // FAB
         Box(modifier = Modifier.align(Alignment.BottomEnd).padding(24.dp).shadow(12.dp, CircleShape, ambientColor = AccentPurple, spotColor = AccentPurple)) {
             FloatingActionButton(
-                onClick = { /* Could route to settings, but settings is top bar */ },
+                onClick = onAdd,
                 containerColor = AccentPurple,
                 shape = CircleShape
             ) {
@@ -323,7 +326,7 @@ fun ChatScreen(
             LazyColumn(
                 modifier = Modifier.weight(1f).fillMaxWidth(),
                 state = listState,
-                contentPadding = PaddingValues(24.dp, 0.dp, 24.dp, 16.dp)
+                contentPadding = PaddingValues(start = 24.dp, top = 0.dp, end = 24.dp, bottom = 16.dp)
             ) {
                 items(messages) { message -> ChatBubble(message, currentAI?.name?.take(1) ?: "A") }
                 if (isWaiting) {
@@ -346,11 +349,10 @@ fun ChatScreen(
                             value = inputText,
                             onValueChange = onInputChange,
                             modifier = Modifier.weight(1f).padding(0.dp, 12.dp),
-                            textStyle = LocalTextStyle.current.copy(color = TextWhite),
+                            textStyle = TextStyle(color = TextWhite, fontSize = 15.sp),
                             singleLine = false,
                             cursorBrush = Brush.linearGradient(listOf(AccentPurple, AccentPurpleDark))
                         )
-                        IconButton(onClick = { /* Voice */ }) { Icon(Icons.Rounded.Mic, tint = TextGray, contentDescription = "Voice") }
                     }
                 }
                 Spacer(modifier = Modifier.width(12.dp))
@@ -391,4 +393,17 @@ fun ChatBubble(message: ChatMessage, aiInitial: String) {
                 .widthIn(max = 280.dp)
                 .clip(RoundedCornerShape(20.dp, 20.dp, 20.dp, if (isUser) 20.dp else 4.dp))
                 .background(bubbleColor)
-                .padding(1
+                .padding(14.dp)
+        ) {
+            Text(message.content, color = TextWhite, fontSize = 15.sp)
+        }
+    }
+}
+
+// --- LOADING ANIMATION (3 Dots) ---
+@Composable
+fun LoadingDots() {
+    val transition = rememberInfiniteTransition()
+    val dots = listOf(
+        transition.animateFloat(initialValue = 0f, targetValue = 1f, animationSpec = infiniteRepeatable(tween(600, delayMillis = 0), RepeatMode.Reverse)),
+        transition.animateFloat(initialValue = 0f, targetValue = 1f, animationSpec = infiniteRepeatable
