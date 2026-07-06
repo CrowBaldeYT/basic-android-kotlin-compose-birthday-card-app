@@ -10,6 +10,7 @@ import java.net.URL
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -31,7 +32,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            DarkMaterialTheme {
+            MaterialTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = Color(0xFF1E1E1E)) {
                     AppScreen(this)
                 }
