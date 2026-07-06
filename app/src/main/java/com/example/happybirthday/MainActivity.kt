@@ -4,25 +4,30 @@ import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Send
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.*
@@ -37,21 +42,25 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            MaterialTheme {
-                Surface(modifier = Modifier.fillMaxSize(), color = Color(0xFF1E1E1E)) {
-                    AppScreen()
-                }
-            }
+            PremiumApp()
         }
     }
 }
 
-// Data classes
+// --- Data Classes ---
 data class AIConfig(val name: String, val apiKey: String, val apiSite: String, val model: String)
 data class ChatMessage(val role: String, val content: String)
 
+// --- Colors ---
+val BgColor = Color(0xFF0E0E11)
+val CardColor = Color(0xFF1A1A1F)
+val AccentPurple = Color(0xFF7C5CFF)
+val AccentPurpleDark = Color(0xFF5C3CFF)
+val TextWhite = Color(0xFFEAEAEA)
+val TextGray = Color(0xFF8E8E93)
+
 @Composable
-fun AppScreen() {
+fun PremiumApp() {
     val context = LocalContext.current
     val sharedPreferences = context.getSharedPreferences("AIConfigs", Context.MODE_PRIVATE)
     var configs by remember { mutableStateOf(loadConfigs(sharedPreferences)) }
@@ -62,6 +71,7 @@ fun AppScreen() {
     var sSite by remember { mutableStateOf("") }
     var sModel by remember { mutableStateOf("") }
     var extraMode by remember { mutableStateOf(false) }
+    var showPassword by remember { mutableStateOf(false) }
 
     // Chat State
     var messages by remember { mutableStateOf(listOf<ChatMessage>()) }
@@ -70,8 +80,8 @@ fun AppScreen() {
     var currentAI by remember { mutableStateOf<AIConfig?>(null) }
     var chatId by remember { mutableStateOf(UUID.randomUUID().toString()) }
     
-    // UI Navigation State
-    var screen by remember { mutableStateOf("settings") } // settings, chat, files
+    // Navigation State
+    var screen by remember { mutableStateOf(if (configs.isEmpty()) "settings" else "models") }
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
 
@@ -79,91 +89,111 @@ fun AppScreen() {
         if (messages.isNotEmpty()) listState.animateScrollToItem(messages.size - 1)
     }
 
-    Scaffold(
-        containerColor = Color(0xFF1E1E1E),
-        topBar = {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = when(screen) {
-                        "chat" -> "ChatGPT Clone"
-                        "files" -> "Chat Files"
-                        else -> "AI Settings"
-                    },
-                    color = Color.White,
-                    style = MaterialTheme.typography.headlineSmall
-                )
-                Row {
-                    if (screen == "chat") {
-                        IconButton(onClick = { screen = "files" }) {
-                            Icon(Icons.Default.Info, contentDescription = "Files", tint = Color.White)
-                        }
-                    }
-                    IconButton(onClick = { screen = if (screen == "settings") "chat" else "settings" }) {
-                        Icon(Icons.Default.Settings, contentDescription = "Settings", tint = Color.White)
-                    }
-                }
+    Box(modifier = Modifier.fillMaxSize().background(BgColor)) {
+        when (screen) {
+            "settings" -> SettingsScreen(
+                sName, sKey, sSite, sModel, showPassword, extraMode,
+                { sName = it }, { sKey = it }, { sSite = it }, { sModel = it }, { showPassword = it }, { extraMode = it },
+                configs, sharedPreferences,
+                onBack = { screen = "models" }
+            )
+            "models" -> ModelsScreen(configs, currentAI) { config ->
+                currentAI = config
+                messages = listOf()
+                chatId = UUID.randomUUID().toString()
+                screen = "chat"
             }
-        },
-        bottomBar = {
-            if (screen == "chat" && currentAI != null) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(16.dp).navigationBarsPadding(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    OutlinedTextField(
-                        value = inputText,
-                        onValueChange = { inputText = it },
-                        modifier = Modifier.weight(1f),
-                        placeholder = { Text("Message AI...") },
-                        colors = textFieldColors(),
-                        shape = RoundedCornerShape(24.dp)
-                    )
-                    IconButton(
-                        onClick = {
-                            if (inputText.isNotBlank() && !isWaiting) {
-                                val userMsg = inputText
-                                messages = messages + ChatMessage("user", userMsg)
-                                inputText = ""
-                                isWaiting = true
-                                
-                                scope.launch {
-                                    val aiResponse = sendMessageToAI(context, currentAI!!, messages, extraMode, chatId)
-                                    isWaiting = false
-                                    messages = messages + ChatMessage("assistant", aiResponse)
-                                }
-                            }
+            "chat" -> ChatScreen(
+                currentAI, messages, inputText, isWaiting, listState,
+                { inputText = it },
+                {
+                    if (inputText.isNotBlank() && !isWaiting) {
+                        val userMsg = inputText
+                        messages = messages + ChatMessage("user", userMsg)
+                        inputText = ""
+                        isWaiting = true
+                        scope.launch {
+                            val aiResponse = sendMessageToAI(context, currentAI!!, messages, extraMode, chatId)
+                            isWaiting = false
+                            messages = messages + ChatMessage("assistant", aiResponse)
                         }
-                    ) {
-                        Icon(Icons.Default.Send, contentDescription = "Send", tint = Color(0xFF7B61FF))
                     }
+                },
+                onBack = { screen = "models" },
+                onSettings = { screen = "settings" }
+            )
+        }
+    }
+}
+
+// --- SETTINGS SCREEN ---
+@Composable
+fun SettingsScreen(
+    sName: String, sKey: String, sSite: String, sModel: String, showPassword: Boolean, extraMode: Boolean,
+    onNameChange: (String) -> Unit, onKeyChange: (String) -> Unit, onSiteChange: (String) -> Unit, onModelChange: (String) -> Unit,
+    onTogglePassword: () -> Unit, onToggleExtra: () -> Unit,
+    configs: List<AIConfig>, sharedPreferences: android.content.SharedPreferences,
+    onBack: () -> Unit
+) {
+    Scaffold(
+        containerColor = BgColor,
+        topBar = {
+            Row(modifier = Modifier.fillMaxWidth().padding(24.dp, 48.dp, 24.dp, 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onBack) { Icon(Icons.Rounded.ArrowBack, tint = TextWhite, contentDescription = "Back") }
+                Spacer(modifier = Modifier.width(16.dp))
+                Column {
+                    Text("AI Configuration", color = TextWhite, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+                    Text("Manage your AI providers", color = TextGray, fontSize = 14.sp)
                 }
             }
         }
-    ) { paddingValues ->
-        Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
-            when (screen) {
-                "settings" -> {
-                    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-                        OutlinedTextField(value = sName, onValueChange = { sName = it }, label = { Text("AI Name") }, modifier = Modifier.fillMaxWidth(), colors = textFieldColors())
-                        Spacer(modifier = Modifier.height(8.dp))
-                        OutlinedTextField(value = sKey, onValueChange = { sKey = it }, label = { Text("API Key") }, visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth(), colors = textFieldColors())
-                        Spacer(modifier = Modifier.height(8.dp))
-                        OutlinedTextField(value = sSite, onValueChange = { sSite = it }, label = { Text("API Base URL") }, modifier = Modifier.fillMaxWidth(), colors = textFieldColors())
-                        Spacer(modifier = Modifier.height(8.dp))
-                        OutlinedTextField(value = sModel, onValueChange = { sModel = it }, label = { Text("Model Name") }, modifier = Modifier.fillMaxWidth(), colors = textFieldColors())
+    ) { padding ->
+        LazyColumn(modifier = Modifier.fillMaxSize().padding(padding).padding(24.dp)) {
+            item {
+                // Form Card
+                Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = CardColor)) {
+                    Column(modifier = Modifier.padding(20.dp)) {
+                        Text("Provider Details", color = TextGray, fontSize = 12.sp, modifier = Modifier.padding(bottom = 16.dp))
+                        
+                        PremiumTextField("Provider Name", sName, onNameChange, Icons.Rounded.Business)
                         Spacer(modifier = Modifier.height(16.dp))
                         
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Switch(checked = extraMode, onCheckedChange = { extraMode = it }, colors = SwitchDefaults.colors(checkedThumbColor = Color(0xFF7B61FF)))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Extra Mode (File Access)", color = Color.White)
+                        PremiumTextField("API Key", sKey, onKeyChange, Icons.Rounded.Key, 
+                            isPassword = !showPassword, 
+                            trailing = {
+                                IconButton(onClick = onTogglePassword) {
+                                    Icon(if (showPassword) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility, tint = TextGray, contentDescription = "Toggle")
+                                }
+                            }
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        PremiumTextField("Base URL", sSite, onSiteChange, Icons.Rounded.Public)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        PremiumTextField("Model Name", sModel, onModelChange, Icons.Rounded.SmartToy)
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                // Extra Mode Toggle
+                Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = CardColor)) {
+                    Row(modifier = Modifier.fillMaxSize().padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Extra Mode (File Access)", color = TextWhite, fontWeight = FontWeight.SemiBold)
+                            Text("Allows AI to create and edit files", color = TextGray, fontSize = 12.sp)
                         }
-                        
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Switch(checked = extraMode, onCheckedChange = { onToggleExtra() }, colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = AccentPurple))
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Save Button
+                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Box(modifier = Modifier.shadow(elevation = 16.dp, shape = RoundedCornerShape(24.dp), ambientColor = AccentPurple, spotColor = AccentPurple)) {
                         Button(
                             onClick = {
                                 if (sName.isNotBlank() && sKey.isNotBlank() && sSite.isNotBlank() && sModel.isNotBlank()) {
@@ -173,58 +203,37 @@ fun AppScreen() {
                                     sName = ""; sKey = ""; sSite = ""; sModel = ""
                                 }
                             },
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7B61FF))
-                        ) { Text("Save AI Configuration") }
-
-                        Spacer(modifier = Modifier.height(16.dp))
-                        LazyColumn {
-                            items(configs) { config ->
-                                Card(
-                                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).clickable {
-                                        currentAI = config
-                                        messages = listOf()
-                                        chatId = UUID.randomUUID().toString()
-                                        screen = "chat"
-                                    },
-                                    colors = CardDefaults.cardColors(containerColor = Color(0xFF2C2C2C))
-                                ) {
-                                    Column(modifier = Modifier.padding(16.dp)) {
-                                        Text(config.name, color = Color.White, fontWeight = FontWeight.Bold)
-                                        Text("Model: ${config.model}", color = Color.Gray, fontSize = 12.sp)
-                                        Text("Tap to Chat", color = Color(0xFF7B61FF), fontSize = 12.sp)
-                                    }
-                                }
+                            modifier = Modifier.fillMaxWidth().height(56.dp),
+                            shape = RoundedCornerShape(24.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                            contentPadding = PaddingValues()
+                        ) {
+                            Box(modifier = Modifier.background(Brush.linearGradient(listOf(AccentPurple, AccentPurpleDark))).fillMaxSize(), contentAlignment = Alignment.Center) {
+                                Text("Save Configuration", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                             }
                         }
                     }
                 }
-                "chat" -> {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize().padding(16.dp),
-                        state = listState
-                    ) {
-                        items(messages) { message -> ChatBubble(message) }
-                        if (isWaiting) {
-                            item { Text("AI is thinking...", color = Color.Gray, modifier = Modifier.padding(8.dp)) }
+                
+                Spacer(modifier = Modifier.height(32.dp))
+                Text("Saved Models", color = TextGray, fontSize = 14.sp, modifier = Modifier.padding(start = 8.dp))
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+            
+            items(configs) { config ->
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = CardColor)
+                ) {
+                    Row(modifier = Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Box(modifier = Modifier.size(40.dp).clip(CircleShape).background(Brush.linearGradient(listOf(AccentPurple, AccentPurpleDark))), contentAlignment = Alignment.Center) {
+                            Text(config.name.take(1).uppercase(), color = Color.White, fontWeight = FontWeight.Bold)
                         }
-                    }
-                }
-                "files" -> {
-                    val chatDir = File(context.getExternalFilesDir(null), "AI_Chat_$chatId")
-                    val files = chatDir.listFiles()?.toList() ?: emptyList()
-                    LazyColumn(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-                        if (files.isEmpty()) {
-                            item { Text("No files created in this chat yet.", color = Color.Gray) }
-                        } else {
-                            items(files) { file ->
-                                Card(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFF2C2C2C))) {
-                                    Column(modifier = Modifier.padding(16.dp)) {
-                                        Text(file.name, color = Color.White, fontWeight = FontWeight.Bold)
-                                        Text("${file.length()} bytes", color = Color.Gray, fontSize = 12.sp)
-                                    }
-                                }
-                            }
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column {
+                            Text(config.name, color = TextWhite, fontWeight = FontWeight.SemiBold)
+                            Text(config.model, color = TextGray, fontSize = 12.sp)
                         }
                     }
                 }
@@ -233,120 +242,153 @@ fun AppScreen() {
     }
 }
 
+// --- MODELS SCREEN ---
 @Composable
-fun ChatBubble(message: ChatMessage) {
+fun ModelsScreen(configs: List<AIConfig>, currentAI: AIConfig?, onSelect: (AIConfig) -> Unit) {
+    Box(modifier = Modifier.fillMaxSize().background(BgColor)) {
+        Column(modifier = Modifier.padding(24.dp, 48.dp, 24.dp, 24.dp)) {
+            Text("My AI Models", color = TextWhite, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            LazyColumn(modifier = Modifier.weight(1f)) {
+                items(configs) { config ->
+                    val isSelected = currentAI?.name == config.name
+                    val glowColor = if (isSelected) AccentPurple else Color.Transparent
+                    
+                    Box(modifier = Modifier.padding(vertical = 6.dp).shadow(8.dp, RoundedCornerShape(20.dp), ambientColor = glowColor, spotColor = glowColor)) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth().clickable { onSelect(config) },
+                            shape = RoundedCornerShape(20.dp),
+                            colors = CardDefaults.cardColors(containerColor = CardColor)
+                        ) {
+                            Row(modifier = Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Box(modifier = Modifier.size(48.dp).clip(CircleShape).background(Brush.linearGradient(listOf(AccentPurple, AccentPurpleDark))), contentAlignment = Alignment.Center) {
+                                    Text(config.name.take(1).uppercase(), color = Color.White, fontWeight = FontWeight.Bold)
+                                }
+                                Spacer(modifier = Modifier.width(16.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(config.name, color = TextWhite, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                                    Text("Online", color = Color(0xFF4CD964), fontSize = 12.sp)
+                                    Text(config.model, color = TextGray, fontSize = 12.sp)
+                                }
+                                Icon(Icons.Rounded.ChevronRight, tint = TextGray, contentDescription = "Select")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // FAB
+        Box(modifier = Modifier.align(Alignment.BottomEnd).padding(24.dp).shadow(12.dp, CircleShape, ambientColor = AccentPurple, spotColor = AccentPurple)) {
+            FloatingActionButton(
+                onClick = { /* Could route to settings, but settings is top bar */ },
+                containerColor = AccentPurple,
+                shape = CircleShape
+            ) {
+                Icon(Icons.Rounded.Add, tint = Color.White, contentDescription = "Add")
+            }
+        }
+    }
+}
+
+// --- CHAT SCREEN ---
+@Composable
+fun ChatScreen(
+    currentAI: AIConfig?, messages: List<ChatMessage>, inputText: String, isWaiting: Boolean,
+    listState: androidx.compose.foundation.lazy.LazyListState,
+    onInputChange: (String) -> Unit, onSend: () -> Unit, onBack: () -> Unit, onSettings: () -> Unit
+) {
+    Box(modifier = Modifier.fillMaxSize().background(BgColor)) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Top Bar
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(24.dp, 48.dp, 24.dp, 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onBack) { Icon(Icons.Rounded.ArrowBack, tint = TextWhite, contentDescription = "Back") }
+                Box(modifier = Modifier.size(36.dp).clip(CircleShape).background(Brush.linearGradient(listOf(AccentPurple, AccentPurpleDark))), contentAlignment = Alignment.Center) {
+                    Text(currentAI?.name?.take(1)?.uppercase() ?: "AI", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Chat", color = TextWhite, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    Text(currentAI?.model ?: "Unknown", color = TextGray, fontSize = 12.sp)
+                }
+                IconButton(onClick = { /* Search */ }) { Icon(Icons.Rounded.Search, tint = TextGray, contentDescription = "Search") }
+                IconButton(onClick = onSettings) { Icon(Icons.Rounded.Settings, tint = TextGray, contentDescription = "Settings") }
+            }
+
+            // Chat List
+            LazyColumn(
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                state = listState,
+                contentPadding = PaddingValues(24.dp, 0.dp, 24.dp, 16.dp)
+            ) {
+                items(messages) { message -> ChatBubble(message, currentAI?.name?.take(1) ?: "A") }
+                if (isWaiting) {
+                    item { LoadingDots() }
+                }
+            }
+
+            // Input Bar
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(16.dp).navigationBarsPadding(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier.weight(1f).height(52.dp).clip(RoundedCornerShape(26.dp)).background(CardColor).border(1.dp, Color(0xFF2C2C2C), RoundedCornerShape(26.dp)),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = { /* Attach */ }) { Icon(Icons.Rounded.Add, tint = TextGray, contentDescription = "Add") }
+                        BasicTextField(
+                            value = inputText,
+                            onValueChange = onInputChange,
+                            modifier = Modifier.weight(1f).padding(0.dp, 12.dp),
+                            textStyle = LocalTextStyle.current.copy(color = TextWhite),
+                            singleLine = false,
+                            cursorBrush = Brush.linearGradient(listOf(AccentPurple, AccentPurpleDark))
+                        )
+                        IconButton(onClick = { /* Voice */ }) { Icon(Icons.Rounded.Mic, tint = TextGray, contentDescription = "Voice") }
+                    }
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                // Send Button
+                Box(modifier = Modifier.shadow(8.dp, CircleShape, ambientColor = AccentPurple, spotColor = AccentPurple)) {
+                    IconButton(
+                        onClick = onSend,
+                        modifier = Modifier.size(52.dp).clip(CircleShape).background(Brush.linearGradient(listOf(AccentPurple, AccentPurpleDark)))
+                    ) {
+                        Icon(Icons.Rounded.Send, tint = Color.White, contentDescription = "Send")
+                    }
+                }
+            }
+        }
+    }
+}
+
+// --- CHAT BUBBLE ---
+@Composable
+fun ChatBubble(message: ChatMessage, aiInitial: String) {
     val isUser = message.role == "user"
     val alignment = if (isUser) Arrangement.End else Arrangement.Start
-    val bgColor = if (isUser) Color(0xFF7B61FF) else Color(0xFF2C2C2C)
+    val bubbleColor = if (isUser) Brush.linearGradient(listOf(AccentPurple, AccentPurpleDark)) else Brush.linearGradient(listOf(CardColor, CardColor))
     
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
         horizontalArrangement = alignment
     ) {
+        if (!isUser) {
+            Box(modifier = Modifier.size(32.dp).clip(CircleShape).background(Brush.linearGradient(listOf(AccentPurple, AccentPurpleDark))), contentAlignment = Alignment.Center) {
+                Text(aiInitial, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+        }
+        
         Box(
             modifier = Modifier
-                .background(bgColor, RoundedCornerShape(16.dp))
-                .padding(12.dp)
                 .widthIn(max = 280.dp)
-        ) {
-            Text(text = message.content, color = Color.White)
-        }
-    }
-}
-
-// Network & File Logic
-suspend fun sendMessageToAI(context: Context, config: AIConfig, history: List<ChatMessage>, extraMode: Boolean, chatId: String): String = withContext(Dispatchers.IO) {
-    try {
-        val baseUrl = config.apiSite.trimEnd('/')
-        val url = URL("$baseUrl/v1/chat/completions")
-        val conn = (url.openConnection() as HttpURLConnection).apply {
-            requestMethod = "POST"
-            setRequestProperty("Content-Type", "application/json")
-            setRequestProperty("Authorization", "Bearer ${config.apiKey}")
-            doOutput = true
-        }
-
-        val messagesArray = JSONArray()
-        
-        // System Prompt for Extra Mode
-        if (extraMode) {
-            val sysPrompt = JSONObject()
-            sysPrompt.put("role", "system")
-            sysPrompt.put("content", "You have file system access. To create or edit a file, output EXACTLY this format: <file name=\"filename.txt\">file content here</file>. Do not use markdown code blocks for files. Use the exact tag.")
-            messagesArray.put(sysPrompt)
-        }
-
-        for (msg in history) {
-            val jsonMsg = JSONObject()
-            jsonMsg.put("role", msg.role)
-            jsonMsg.put("content", msg.content)
-            messagesArray.put(jsonMsg)
-        }
-
-        val payload = JSONObject()
-        payload.put("model", config.model)
-        payload.put("messages", messagesArray)
-
-        conn.outputStream.use { os -> os.write(payload.toString().toByteArray(Charsets.UTF_8)) }
-
-        if (conn.responseCode == 200) {
-            val response = conn.inputStream.bufferedReader().use { it.readText() }
-            val jsonResponse = JSONObject(response)
-            val rawContent = jsonResponse.getJSONArray("choices").getJSONObject(0).getJSONObject("message").getString("content")
-            
-            // File Parser Logic
-            if (extraMode) {
-                val regex = Regex("<file name=\"(.*?)\">(.*?)</file>", RegexOption.DOT_MATCHES_ALL)
-                val matches = regex.findAll(rawContent).toList()
-                if (matches.isNotEmpty()) {
-                    val chatDir = File(context.getExternalFilesDir(null), "AI_Chat_$chatId")
-                    if (!chatDir.exists()) chatDir.mkdirs()
-                    
-                    for (match in matches) {
-                        val (fileName, fileContent) = match.destructured
-                        File(chatDir, fileName.trim()).writeText(fileContent.trim())
-                    }
-                    // Return text without the file tags so chat looks clean
-                    return@withContext regex.replace(rawContent, "[File created successfully]").trim()
-                }
-            }
-            return@withContext rawContent
-        } else {
-            val errorResponse = conn.errorStream?.bufferedReader()?.use { it.readText() }
-            return@withContext "Error: ${conn.responseCode} - $errorResponse"
-        }
-    } catch (e: Exception) {
-        return@withContext "Failed to connect: ${e.message}"
-    }
-}
-
-// Helpers
-@Composable
-fun textFieldColors() = OutlinedTextFieldDefaults.colors(
-    focusedTextColor = Color.White, unfocusedTextColor = Color.White,
-    focusedContainerColor = Color(0xFF2C2C2C), unfocusedContainerColor = Color(0xFF2C2C2C),
-    cursorColor = Color(0xFF7B61FF), focusedBorderColor = Color(0xFF7B61FF),
-    unfocusedBorderColor = Color.DarkGray
-)
-
-private fun saveConfigs(sharedPreferences: android.content.SharedPreferences, configs: List<AIConfig>) {
-    val jsonArray = JSONArray()
-    for (config in configs) {
-        val jsonObject = JSONObject()
-        jsonObject.put("name", config.name); jsonObject.put("apiKey", config.apiKey)
-        jsonObject.put("apiSite", config.apiSite); jsonObject.put("model", config.model)
-        jsonArray.put(jsonObject)
-    }
-    sharedPreferences.edit().putString("configs", jsonArray.toString()).apply()
-}
-
-private fun loadConfigs(sharedPreferences: android.content.SharedPreferences): List<AIConfig> {
-    val configsString = sharedPreferences.getString("configs", null) ?: return emptyList()
-    val jsonArray = JSONArray(configsString)
-    val configs = mutableListOf<AIConfig>()
-    for (i in 0 until jsonArray.length()) {
-        val jsonObject = jsonArray.getJSONObject(i)
-        configs.add(AIConfig(jsonObject.getString("name"), jsonObject.getString("apiKey"), jsonObject.getString("apiSite"), jsonObject.optString("model", "gpt-3.5-turbo")))
-    }
-    return configs
-}
+                .clip(RoundedCornerShape(20.dp, 20.dp, 20.dp, if (isUser) 20.dp else 4.dp))
+                .background(bubbleColor)
+                .padding(1
