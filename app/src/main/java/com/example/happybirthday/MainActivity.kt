@@ -12,7 +12,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
@@ -99,7 +99,7 @@ fun AppScreen() {
                 Row {
                     if (screen == "chat") {
                         IconButton(onClick = { screen = "files" }) {
-                            Icon(Icons.Default.Folder, contentDescription = "Files", tint = Color.White)
+                            Icon(Icons.Default.Info, contentDescription = "Files", tint = Color.White)
                         }
                     }
                     IconButton(onClick = { screen = if (screen == "settings") "chat" else "settings" }) {
