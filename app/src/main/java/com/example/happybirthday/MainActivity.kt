@@ -405,6 +405,10 @@ fun ChatBubble(message: ChatMessage, aiInitial: String) {
 @Composable
 fun LoadingDots() {
     val transition = rememberInfiniteTransition()
-    val dot1 by transition.animateFloat(0f, 1f, infiniteRepeatable(tween(600, 0), RepeatMode.Reverse))
-    val dot2 by transition.animateFloat(0f, 1f, infiniteRepeatable(tween(600, 200), RepeatMode.Reverse))
-    val dot3 by tr
+    
+    val dot1 by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 600, delayMillis = 0),
+            r
