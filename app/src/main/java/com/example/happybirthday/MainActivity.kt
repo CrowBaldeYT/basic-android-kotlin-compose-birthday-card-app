@@ -1,4 +1,4 @@
-package com.example.birthdaycard // MAKE SURE IT MATCHES THIS EXACTLY
+package com.example.happybirthday
 
 import android.content.Context
 import android.os.Bundle
