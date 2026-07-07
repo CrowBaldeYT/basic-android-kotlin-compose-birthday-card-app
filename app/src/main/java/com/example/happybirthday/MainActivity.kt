@@ -17,19 +17,17 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.AutoAwesome
-import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Send
 import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
@@ -124,7 +122,8 @@ fun PremiumApp() {
                         sName = ""; sKey = ""; sSite = ""; sModel = ""
                     }
                 },
-                onBack = { screen = "chat" }
+                onBack = { screen = "chat" },
+                currentAI = currentAI
             )
             "chat" -> ChatScreen(
                 currentAI = currentAI, 
@@ -162,7 +161,8 @@ fun SettingsScreen(
     onNameChange: (String) -> Unit, onKeyChange: (String) -> Unit, onSiteChange: (String) -> Unit, onModelChange: (String) -> Unit,
     onTogglePassword: () -> Unit, onToggleExtra: () -> Unit,
     onSave: () -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    currentAI: AIConfig?
 ) {
     Scaffold(
         containerColor = BgColor,
@@ -194,7 +194,7 @@ fun SettingsScreen(
                             }
                             Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(SuccessColor))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Icon(Icons.Rounded.ChevronRight, tint = InactiveColor, contentDescription = "Edit")
+                            Icon(Icons.Rounded.Info, tint = InactiveColor, contentDescription = "Edit")
                         }
                         HorizontalDivider(color = ElevatedColor, thickness = 1.dp, modifier = Modifier.padding(horizontal = 20.dp))
                         Row(modifier = Modifier.fillMaxWidth().padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -318,7 +318,7 @@ fun ChatScreen(
             if (messages.isEmpty()) {
                 Column(modifier = Modifier.weight(1f).fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                     Box(modifier = Modifier.size(64.dp).shadow(16.dp, CircleShape, ambientColor = AccentPurple, spotColor = AccentPurple).clip(CircleShape).background(BgColor), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Rounded.AutoAwesome, tint = AccentPurple, contentDescription = "AI", modifier = Modifier.size(32.dp))
+                        Icon(Icons.Rounded.Star, tint = AccentPurple, contentDescription = "AI", modifier = Modifier.size(32.dp))
                     }
                     Spacer(modifier = Modifier.height(24.dp))
                     Text("How can I help today?", color = TextPrimary, fontSize = 22.sp, fontWeight = FontWeight.Bold)
@@ -366,4 +366,4 @@ fun ChatScreen(
                         onClick = onSend,
                         modifier = Modifier.size(56.dp).clip(CircleShape).background(Brush.linearGradient(listOf(AccentPurple, SecondaryPurple)))
                     ) {
-                        
+                        Icon(Icons.Rounded.Send, tint 
