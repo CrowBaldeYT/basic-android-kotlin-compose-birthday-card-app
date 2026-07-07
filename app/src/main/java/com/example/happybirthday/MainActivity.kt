@@ -401,14 +401,14 @@ fun ChatBubble(message: ChatMessage, aiInitial: String) {
     }
 }
 
-// --- LOADING ANIMATION (3 Dots) ---
+// --- LOADING ANIMATION (Pulsating Circle) ---
 @Composable
 fun LoadingDots() {
     val transition = rememberInfiniteTransition()
-    
-    val dot1 by transition.animateFloat(
-        initialValue = 0f,
+    val alpha by transition.animateFloat(
+        initialValue = 0.2f,
         targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 600, delayMillis = 0),
-            r
+        animationSpec = infiniteRepeatable(animation = tween(600), repeatMode = RepeatMode.Reverse)
+    )
+    
+    Row(
