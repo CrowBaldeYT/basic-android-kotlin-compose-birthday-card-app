@@ -15,15 +15,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.Info
-import androidx.compose.material.icons.rounded.Lock
-import androidx.compose.material.icons.rounded.Person
-import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material.icons.rounded.Send
-import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -168,7 +167,7 @@ fun SettingsScreen(
         containerColor = BgColor,
         topBar = {
             Row(modifier = Modifier.fillMaxWidth().padding(24.dp, 48.dp, 24.dp, 16.dp), verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onBack) { Icon(Icons.Rounded.ArrowBack, tint = TextPrimary, contentDescription = "Back") }
+                IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, tint = TextPrimary, contentDescription = "Back") }
                 Spacer(modifier = Modifier.width(16.dp))
                 Column {
                     Text("AI Providers", color = TextPrimary, fontSize = 32.sp, fontWeight = FontWeight.Bold)
@@ -194,12 +193,12 @@ fun SettingsScreen(
                             }
                             Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(SuccessColor))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Icon(Icons.Rounded.Info, tint = InactiveColor, contentDescription = "Edit")
+                            Icon(Icons.Default.Info, tint = InactiveColor, contentDescription = "Edit")
                         }
                         HorizontalDivider(color = ElevatedColor, thickness = 1.dp, modifier = Modifier.padding(horizontal = 20.dp))
                         Row(modifier = Modifier.fillMaxWidth().padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
                             Box(modifier = Modifier.size(40.dp).clip(CircleShape).background(ElevatedColor), contentAlignment = Alignment.Center) {
-                                Icon(Icons.Rounded.Add, tint = TextSecondary, contentDescription = "Add")
+                                Icon(Icons.Default.Add, tint = TextSecondary, contentDescription = "Add")
                             }
                             Spacer(modifier = Modifier.width(16.dp))
                             Text("Add New Provider", color = TextSecondary, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
@@ -215,9 +214,9 @@ fun SettingsScreen(
                 Text("Provider Details", color = TextSecondary, fontSize = 14.sp, modifier = Modifier.padding(start = 8.dp, bottom = 12.dp))
                 Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = CardColor)) {
                     Column(modifier = Modifier.padding(20.dp)) {
-                        PremiumTextField("Provider Name", sName, onNameChange, Icons.Rounded.Person)
+                        PremiumTextField("Provider Name", sName, onNameChange, Icons.Default.Person)
                         Spacer(modifier = Modifier.height(16.dp))
-                        PremiumTextField("API Key", sKey, onKeyChange, Icons.Rounded.Lock, 
+                        PremiumTextField("API Key", sKey, onKeyChange, Icons.Default.Lock, 
                             isPassword = !showPassword, 
                             trailing = {
                                 TextButton(onClick = onTogglePassword) {
@@ -226,9 +225,9 @@ fun SettingsScreen(
                             }
                         )
                         Spacer(modifier = Modifier.height(16.dp))
-                        PremiumTextField("Base URL", sSite, onSiteChange, Icons.Rounded.Info)
+                        PremiumTextField("Base URL", sSite, onSiteChange, Icons.Default.Info)
                         Spacer(modifier = Modifier.height(16.dp))
-                        PremiumTextField("Model Name", sModel, onModelChange, Icons.Rounded.Info)
+                        PremiumTextField("Model Name", sModel, onModelChange, Icons.Default.Info)
                     }
                 }
             }
@@ -298,8 +297,8 @@ fun ChatScreen(
                     Text("Chat Assistant", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                     Text(currentAI?.model ?: "Select a model", color = TextSecondary, fontSize = 13.sp)
                 }
-                IconButton(onClick = { /* Search */ }) { Icon(Icons.Rounded.Search, tint = TextSecondary, contentDescription = "Search") }
-                IconButton(onClick = onSettings) { Icon(Icons.Rounded.Settings, tint = TextSecondary, contentDescription = "Settings") }
+                IconButton(onClick = { /* Search */ }) { Icon(Icons.Default.Search, tint = TextSecondary, contentDescription = "Search") }
+                IconButton(onClick = onSettings) { Icon(Icons.Default.Settings, tint = TextSecondary, contentDescription = "Settings") }
             }
 
             // Model Selector Chips
@@ -318,7 +317,7 @@ fun ChatScreen(
             if (messages.isEmpty()) {
                 Column(modifier = Modifier.weight(1f).fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                     Box(modifier = Modifier.size(64.dp).shadow(16.dp, CircleShape, ambientColor = AccentPurple, spotColor = AccentPurple).clip(CircleShape).background(BgColor), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Rounded.Star, tint = AccentPurple, contentDescription = "AI", modifier = Modifier.size(32.dp))
+                        Icon(Icons.Default.Info, tint = AccentPurple, contentDescription = "AI", modifier = Modifier.size(32.dp))
                     }
                     Spacer(modifier = Modifier.height(24.dp))
                     Text("How can I help today?", color = TextPrimary, fontSize = 22.sp, fontWeight = FontWeight.Bold)
@@ -348,7 +347,7 @@ fun ChatScreen(
                     contentAlignment = Alignment.CenterStart
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(onClick = { /* Attach */ }) { Icon(Icons.Rounded.Add, tint = TextSecondary, contentDescription = "Add") }
+                        IconButton(onClick = { /* Attach */ }) { Icon(Icons.Default.Add, tint = TextSecondary, contentDescription = "Add") }
                         BasicTextField(
                             value = inputText,
                             onValueChange = onInputChange,
@@ -366,4 +365,5 @@ fun ChatScreen(
                         onClick = onSend,
                         modifier = Modifier.size(56.dp).clip(CircleShape).background(Brush.linearGradient(listOf(AccentPurple, SecondaryPurple)))
                     ) {
-                        Icon(Icons.Rounded.Send, tint 
+                        Icon(Icons.Default.Send, tint = TextPrimary, contentDescription = "Send")
+                
